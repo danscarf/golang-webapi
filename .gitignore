@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Add more ignores.
+go/pkg/*
+go/**/*.tmp
+go/**/swagger/*
+go/**/swagger.zip
