@@ -8,8 +8,23 @@ pipeline {
   stages {
     stage('stage1') {
       steps {
-        git(url: 'https://github.com/danscarf/golang-webapi', branch: 'master')
+        checkout(
+          [$class: 'GitSCM',
+          branches: [[name: '*/master']],
+          doGenerateSubmoduleConfigurations: false,
+          extensions: [],
+          submoduleCfg: [],
+          userRemoteConfigs:
+            [
+              [
+                credentialsId: 'github',
+                url: 'https://github.com/danscarf/golang-webapi'
+              ]
+            ]
+          ]
+        )
       }
     }
   }
 }
+
