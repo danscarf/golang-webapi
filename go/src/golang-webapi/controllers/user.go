@@ -1,10 +1,13 @@
 package controllers
 
 import (
-	"golang-webapi/models"
 	"encoding/json"
+	"golang-webapi/models"
+	"log"
 
 	"github.com/astaxie/beego"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Operations about Users
@@ -21,8 +24,17 @@ type UserController struct {
 func (u *UserController) Post() {
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
-	uid := models.AddUser(user)
-	u.Data["json"] = map[string]string{"uid": uid}
+
+	session, err := mgo.Dial("mongodb://dock.home:27017")
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+	c := session.DB("test").C("users")
+	err = c.Insert(&user)
+	if err != nil {
+		log.Fatal(err)
+	}
 	u.ServeJSON()
 }
 
@@ -31,7 +43,18 @@ func (u *UserController) Post() {
 // @Success 200 {object} models.User
 // @router / [get]
 func (u *UserController) GetAll() {
-	users := models.GetAllUsers()
+
+	session, err := mgo.Dial("mongodb://dock.home:27017")
+	if err != nil {
+		panic(err)
+	}
+	c := session.DB("test").C("users")
+	var users []models.User
+	queryError := c.Find(bson.M{}).All(&users)
+	if queryError != nil {
+		panic(queryError)
+	}
+	session.Close()
 	u.Data["json"] = users
 	u.ServeJSON()
 }
@@ -116,4 +139,3 @@ func (u *UserController) Logout() {
 	u.Data["json"] = "logout success"
 	u.ServeJSON()
 }
-
