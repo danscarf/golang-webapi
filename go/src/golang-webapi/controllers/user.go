@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"golang-webapi/models"
 	"log"
+	"os"
 
 	"github.com/astaxie/beego"
 	"gopkg.in/mgo.v2"
@@ -15,6 +16,10 @@ type UserController struct {
 	beego.Controller
 }
 
+var (
+	mongoConnStr = os.Getenv("MONGO_CONN_STR")
+)
+
 // @Title CreateUser
 // @Description create users
 // @Param	body		body 	models.User	true		"body for user content"
@@ -25,7 +30,7 @@ func (u *UserController) Post() {
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 
-	session, err := mgo.Dial("mongodb://dock.home:27017")
+	session, err := mgo.Dial(mongoConnStr)
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +39,9 @@ func (u *UserController) Post() {
 	err = c.Insert(&user)
 	if err != nil {
 		log.Fatal(err)
-
+		u.Data["json"] = err
+	} else {
+		u.Data["json"] = user
 	}
 	u.ServeJSON()
 }
@@ -45,7 +52,7 @@ func (u *UserController) Post() {
 // @router / [get]
 func (u *UserController) GetAll() {
 
-	session, err := mgo.Dial("mongodb://dock.home:27017")
+	session, err := mgo.Dial(mongoConnStr)
 	if err != nil {
 		panic(err)
 	}
@@ -54,9 +61,10 @@ func (u *UserController) GetAll() {
 	queryError := c.Find(bson.M{}).All(&users)
 	if queryError != nil {
 		u.Data["json"] = queryError
+	} else {
+		u.Data["json"] = users
 	}
 	session.Close()
-	u.Data["json"] = users
 	u.ServeJSON()
 }
 
@@ -69,7 +77,7 @@ func (u *UserController) GetAll() {
 func (u *UserController) Get() {
 	uid := u.GetString(":uid")
 	if uid != "" {
-		session, err := mgo.Dial("mongodb://dock.home:27017")
+		session, err := mgo.Dial(mongoConnStr)
 		if err != nil {
 			panic(err)
 		}
@@ -78,9 +86,10 @@ func (u *UserController) Get() {
 		err = c.Find(bson.M{"id": uid}).One(&user)
 		if err != nil {
 			u.Data["json"] = err
+		} else {
+			u.Data["json"] = user
 		}
 		session.Close()
-		u.Data["json"] = user
 	}
 	u.ServeJSON()
 }
@@ -98,7 +107,7 @@ func (u *UserController) Put() {
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 	if uid != "" {
 
-		session, err := mgo.Dial("mongodb://dock.home:27017")
+		session, err := mgo.Dial(mongoConnStr)
 		if err != nil {
 			panic(err)
 		}
@@ -106,10 +115,11 @@ func (u *UserController) Put() {
 		err = c.Update(bson.M{"id": uid}, &user)
 
 		if err != nil {
-			panic(err)
+			u.Data["json"] = err
+		} else {
+			u.Data["json"] = user
 		}
 		session.Close()
-		u.Data["json"] = user
 	}
 	u.ServeJSON()
 }
@@ -124,8 +134,7 @@ func (u *UserController) Delete() {
 	uid := u.GetString(":uid")
 
 	if uid != "" {
-
-		session, err := mgo.Dial("mongodb://dock.home:27017")
+		session, err := mgo.Dial(mongoConnStr)
 		if err != nil {
 			panic(err)
 		}
@@ -133,11 +142,11 @@ func (u *UserController) Delete() {
 		err = c.Remove(bson.M{"id": uid})
 
 		if err != nil {
-			panic(err)
+			u.Data["json"] = "User not removed!"
+		} else {
+			u.Data["json"] = "User removed!"
 		}
-
 		session.Close()
-		u.Data["json"] = "User removed!"
 	} else {
 		u.Data["json"] = "User not removed!"
 	}
