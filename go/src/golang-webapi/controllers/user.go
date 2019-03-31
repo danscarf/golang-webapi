@@ -34,6 +34,7 @@ func (u *UserController) Post() {
 	err = c.Insert(&user)
 	if err != nil {
 		log.Fatal(err)
+
 	}
 	u.ServeJSON()
 }
@@ -52,7 +53,7 @@ func (u *UserController) GetAll() {
 	var users []models.User
 	queryError := c.Find(bson.M{}).All(&users)
 	if queryError != nil {
-		panic(queryError)
+		u.Data["json"] = queryError
 	}
 	session.Close()
 	u.Data["json"] = users
@@ -68,12 +69,18 @@ func (u *UserController) GetAll() {
 func (u *UserController) Get() {
 	uid := u.GetString(":uid")
 	if uid != "" {
-		user, err := models.GetUser(uid)
+		session, err := mgo.Dial("mongodb://dock.home:27017")
 		if err != nil {
-			u.Data["json"] = err.Error()
-		} else {
-			u.Data["json"] = user
+			panic(err)
 		}
+		c := session.DB("test").C("users")
+		var user models.User
+		err = c.Find(bson.M{"id": uid}).One(&user)
+		if err != nil {
+			u.Data["json"] = err
+		}
+		session.Close()
+		u.Data["json"] = user
 	}
 	u.ServeJSON()
 }
@@ -87,15 +94,22 @@ func (u *UserController) Get() {
 // @router /:uid [put]
 func (u *UserController) Put() {
 	uid := u.GetString(":uid")
+	var user models.User
+	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 	if uid != "" {
-		var user models.User
-		json.Unmarshal(u.Ctx.Input.RequestBody, &user)
-		uu, err := models.UpdateUser(uid, &user)
+
+		session, err := mgo.Dial("mongodb://dock.home:27017")
 		if err != nil {
-			u.Data["json"] = err.Error()
-		} else {
-			u.Data["json"] = uu
+			panic(err)
 		}
+		c := session.DB("test").C("users")
+		err = c.Update(bson.M{"id": uid}, &user)
+
+		if err != nil {
+			panic(err)
+		}
+		session.Close()
+		u.Data["json"] = user
 	}
 	u.ServeJSON()
 }
@@ -108,34 +122,24 @@ func (u *UserController) Put() {
 // @router /:uid [delete]
 func (u *UserController) Delete() {
 	uid := u.GetString(":uid")
-	models.DeleteUser(uid)
-	u.Data["json"] = "delete success!"
-	u.ServeJSON()
-}
 
-// @Title Login
-// @Description Logs user into the system
-// @Param	username		query 	string	true		"The username for login"
-// @Param	password		query 	string	true		"The password for login"
-// @Success 200 {string} login success
-// @Failure 403 user not exist
-// @router /login [get]
-func (u *UserController) Login() {
-	username := u.GetString("username")
-	password := u.GetString("password")
-	if models.Login(username, password) {
-		u.Data["json"] = "login success"
+	if uid != "" {
+
+		session, err := mgo.Dial("mongodb://dock.home:27017")
+		if err != nil {
+			panic(err)
+		}
+		c := session.DB("test").C("users")
+		err = c.Remove(bson.M{"id": uid})
+
+		if err != nil {
+			panic(err)
+		}
+
+		session.Close()
+		u.Data["json"] = "User removed!"
 	} else {
-		u.Data["json"] = "user not exist"
+		u.Data["json"] = "User not removed!"
 	}
-	u.ServeJSON()
-}
-
-// @Title logout
-// @Description Logs out current logged in user session
-// @Success 200 {string} logout success
-// @router /logout [get]
-func (u *UserController) Logout() {
-	u.Data["json"] = "logout success"
 	u.ServeJSON()
 }
